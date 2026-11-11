@@ -19,6 +19,9 @@ classifiers = [
 ]
 dependencies = []
 
+[project.scripts]
+typosquat-detector = "typosquat_detector.__main__:main"
+
 [project.urls]
 Homepage = "https://github.com/Trysac/u256-typosquat-detector"
 Source = "https://github.com/Trysac/u256-typosquat-detector"

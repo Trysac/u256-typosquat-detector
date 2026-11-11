@@ -1,29 +1,33 @@
 # Architecture
 
-## Purpose
+## Overview
 
-`trysac-typosquat-detector` is a small, dependency-free Python library: Flag PyPI and npm package names that imitate popular packages: homoglyphs, separator tricks, affixes and one-edit typos against a bundled, overridable popular list
+The typosquat detector examines candidate package names against a list of
+popular names using four ordered rules: `homoglyph`, `separator`, `affix`,
+`distance`. For each popular target, the first matching rule is reported.
 
-## Shape
+## Components
 
-```text
-caller code --> typosquat_detector (public API in __init__.py)
-                    |
-                    +-- pure functions, no I/O, no global state
-```
+- `check`: core function orchestrating validation and rule application.
+- `normalize`: ecosystem-specific normalisation (PEP 503 for PyPI, lowercase for npm).
+- `osa_distance`: optimal string alignment distance with adjacent transpositions.
+- `POPULAR`: bundled mapping of ecosystem to a tuple of popular names.
+- `TyposquatError`: typed error with machine-readable `code`.
+- CLI (`__main__`): uses `argparse`, supports custom popular list file.
 
-- **Public API**: the names listed in `__all__` of `src/typosquat_detector/__init__.py`. Anything else is
-  internal and may change without a major version.
-- **Errors**: invalid input raises built-in exceptions (`ValueError`, `TypeError`) with a clear
-  message; the library never prints or exits.
-- **Side effects**: none. If a feature needs I/O, isolate it in its own module behind a small
-  interface and record the choice in an ADR.
+## Rules
 
-## Quality contract
+1. **homoglyph**: map both names (`0->o`, `1->l`, `3->e`, `5->s`, `rn->m`, `vv->w`) and compare equality.
+2. **separator**: remove `-`, `_`, `.` and compare.
+3. **affix**: check known prefix/suffix combinations that still yield the target.
+4. **distance**: `osa_distance == 1` and both names have length >= 4.
 
-`scripts/check.py` is the single definition of the gates; `fabrica.json` tells the factory and CI
-how to run it. See [TESTING.md](TESTING.md).
+## Popular list
 
-## Decisions
+The bundled list is dated (checked 2026-11-09). It is overridable via the
+`popular` parameter or CLI `--popular` file. See source for sources.
 
-Architecture decisions are recorded in [decisions/](decisions/) as numbered ADRs.
+## Error handling
+
+All validation failures raise `TyposquatError` with a stable code.
+Length limit is 214 characters (npm limit, also applied to PyPI).

@@ -1,22 +1,30 @@
-# Security notes
+# Security
 
 ## Threat model
 
-`trysac-typosquat-detector` is a pure library without I/O. The main risks are:
+The detector identifies package names that imitate popular PyPI or npm packages. It is one layer in a defense-in-depth strategy, not a complete security solution. It works offline and does not query registries.
 
-- **Supply chain**: a compromised dependency or CI action. Mitigation: no runtime dependencies,
-  Dependabot weekly updates, actions pinned to major versions, minimal workflow permissions.
-- **Leaked secrets**: tokens committed by mistake. Mitigation: `gitleaks` runs in the local gates
-  and in CI; `.env` files are git-ignored.
-- **Insecure code**: shell injection, weak hashes, unsafe deserialization. Mitigation: Ruff's
-  `S` rules in lint and a `security` gate (Bandit, high severity fails, `# nosec` ignored); fix the
-  code instead of silencing it.
-- **Untrusted input**: callers may pass hostile strings. Mitigation: validate input and fail with
-  explicit exceptions; never `eval`, `exec` or deserialize untrusted data.
+## Defended against
 
-## Publishing
+- One-edit typos and adjacent transpositions, when both normalised names have at least 4 characters (`distance`).
+- Separator confusion: names equal after removing `-`, `_`, `.` (the helper also strips spaces, which validated names cannot contain).
+- ASCII homoglyphs: names equal after mapping `0->o`, `1->l`, `3->e`, `5->s`, `rn->m`, `vv->w`.
+- Affix squats of a popular name. PyPI prefixes: `python-`, `py-`, `py`; suffixes: `-python`, `-py`, `py`, `-dev`, `-lib`. npm prefixes: `node-`, `js-`; suffixes: `-js`, `.js`, `js`, `-node`.
 
-Releases are published to PyPI with trusted publishing (OIDC) when available, never with a
-long-lived token stored in the repository.
+For each popular target, only the first matching rule is reported, in the order homoglyph, separator, affix, distance. A candidate equal to a target after normalisation is skipped.
 
-To report a vulnerability, see [SECURITY.md](../SECURITY.md).
+## Not defended against
+
+- Unicode confusables (registry names are ASCII).
+- Packages missing from the popular list.
+- Dependency confusion between private and public indexes.
+- Malicious code in correctly named packages.
+
+## Limits
+
+- The bundled popular list is dated data checked 2026-11-09. It can be overridden with `check(..., popular=...)` or the CLI `--popular` file.
+- Names longer than 214 characters raise `TyposquatError` with code `input_too_large`; this is the npm limit and is also applied to PyPI.
+- The `distance` rule only runs when both normalised names have at least 4 characters.
+- Scoped npm names are compared as a whole string.
+- The CLI rejects a popular file larger than 1 MiB or with more than 10,000 non-empty lines.
+- No registry lookups, download counts or lock-file parsing are performed.

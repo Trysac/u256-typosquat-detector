@@ -9,4 +9,5 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Added
 
+- Added typosquat detection for PyPI and npm package names with homoglyph, separator, affix, and distance rules.
 - Initial project structure from the factory utility template.
